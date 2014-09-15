@@ -53,6 +53,49 @@ namespace xml2epub {
     }
   };
 
+  class latex_equation_state : public latex_state {
+  public:
+    latex_equation_state( latex_builder & root, latex_state & parent, const std::string & label, ostream & outs ) :
+      latex_state( root, parent, outs ) {
+      m_out << "\\begin{equation}";
+      if ( label.size() > 0 ) {
+	m_out << "\\label{" << label << "}";
+      }
+      m_out << "\n";
+    }
+    virtual ~latex_equation_state() {
+    }
+    output_state * bold() {
+      throw runtime_error( "can't use bold xml tag in latex math" );
+    }
+    output_state * math() {
+      throw runtime_error( "can't use math xml tag in latex math" );
+    }
+
+    void put_text( const string & str ) {
+      std::string equation(str);
+      for ( size_t pos = equation.find("\n",0); pos != std::string::npos; pos = equation.find("\n",pos+1) ) {
+	equation[pos] = ' ';
+      }
+      m_out << equation;
+    }
+
+    void newline() {
+      throw runtime_error( "can't use newline in math" );
+    }
+
+    output_state * section( const std::string & section_name, unsigned int level ) {
+      throw runtime_error( "can't use section xml tag in latex math" );
+    }
+
+    output_state * plot() {
+      throw runtime_error( "can't use plot xml tag in latex math" );
+    }    
+  public:
+    void finish() {
+      m_out << "\\end{equation}\n";
+    }
+  };
 
 class latex_plot_state : public latex_state {
   private:
@@ -161,6 +204,14 @@ class latex_plot_state : public latex_state {
     return retval;
   }
 
+  output_state * latex_state::chapter( const std::string & chapter_name ) {
+    m_out << "\\";
+    m_out << "chapter{" << chapter_name << "}" << endl;
+    latex_state * retval = new latex_state( m_root, *this, m_out );
+    m_children.push_back( retval );
+    return retval;
+  }
+
   output_state * latex_state::bold() {
     latex_state * retval = new encaps_state( "bf", m_root, * this, m_out );
     m_children.push_back( retval );
@@ -169,6 +220,12 @@ class latex_plot_state : public latex_state {
 
   output_state * latex_state::math() {
     latex_state * retval = new math_state( m_root, * this, m_out );
+    m_children.push_back( retval );
+    return retval;
+  }
+
+  output_state * latex_state::equation(const std::string & label ) {
+    latex_state * retval = new latex_equation_state( m_root, * this, label, m_out );
     m_children.push_back( retval );
     return retval;
   }
@@ -205,7 +262,7 @@ class latex_plot_state : public latex_state {
 	m_out << "\\setmathfont{STIXGeneral}" << endl;
 	m_out << "\\begin{document}" << endl;
       } else {
-	m_out << "\\documentclass[a4paper,12pt]{article}" << endl;
+	m_out << "\\documentclass[a4paper,12pt]{book}" << endl;
 	m_out << "\\usepackage{fontspec}" << endl;
 	m_out << "\\usepackage{unicode-math}" << endl;
 	m_out << "\\usepackage{graphicx}" << endl;

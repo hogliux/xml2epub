@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <iomanip>
 #include <stdexcept>
 #include <sstream>
 #include <algorithm>
@@ -18,6 +19,30 @@ using namespace xmlpp;
 using namespace std;
 
 namespace xml2epub {
+
+  class html_state : public output_state {
+  protected:
+    friend class html_builder;
+    html_state & m_parent;
+    std::vector<html_state*> m_children;
+    xmlpp::Element & m_xml_node;
+    const std::string & m_current_dir;
+  protected:
+    html_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir );
+    html_state( xmlpp::Element & xml_node, const std::string & current_dir );
+    virtual ~html_state();
+  public:
+    void put_text( const std::string & str );
+    void newline();
+    output_state * bold();
+    output_state * math();
+    output_state * equation(const std::string & label );
+    output_state * section( const std::string & section_name, unsigned int level );
+    output_state * chapter( const std::string & chapter_name );
+    output_state * plot();
+    void finish();
+  };
+
   
   class html_math_state : public html_state {
   private:
@@ -51,8 +76,8 @@ namespace xml2epub {
       }
     }
   public:
-    html_math_state( html_builder & root, html_state & parent, xmlpp::Element & xml_node ) 
-      : html_state( root, parent, xml_node ){
+    html_math_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir ) 
+      : html_state( parent, xml_node, current_dir ){
     }
 
     virtual ~html_math_state() {
@@ -162,13 +187,17 @@ namespace xml2epub {
 	  return;
 	}
       }
+      {
+	stringstream ss;
+	ss << "mkdir -p " << m_current_dir << "/images";
+	system(ss.str().c_str());
+      }
       string latex_string;
       {
 	stringstream ss;
 	ss << "$" << m_ss.str() << "$";
 	latex_string = ss.str();
       }
-      system( "mkdir -p images" );
       string file_name;
       {
 	stringstream ss;	
@@ -176,18 +205,24 @@ namespace xml2epub {
 	file_name = ss.str();
       }
       Element * new_node = m_xml_node.add_child( "img" );
+      string img_path;
+      {
+	stringstream ss;
+	ss << m_current_dir << "/images/" << file_name << ".svg";
+	img_path = ss.str();
+      }
+      {
+	ofstream svg_file( img_path.c_str() );
+	{
+	  stringstream iss( latex_string );
+	  latex2svg( iss, svg_file );
+	}
+      }
       string img_url;
       {
 	stringstream ss;
 	ss << "images/" << file_name << ".svg";
 	img_url = ss.str();
-      }
-      {
-	ofstream svg_file( img_url.c_str() );
-	{
-	  stringstream iss( latex_string );
-	  latex2svg( iss, svg_file );
-	}
       }
       new_node->set_attribute( string("src"), img_url );
     }
@@ -198,8 +233,8 @@ namespace xml2epub {
   private:
     stringstream m_data;
   public:
-    html_plot_state( html_builder & root, html_state & parent, xmlpp::Element & xml_node ) 
-      : html_state( root, parent, xml_node ) {
+    html_plot_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir ) 
+      : html_state( parent, xml_node, current_dir ) {
     }
     
     virtual ~html_plot_state() {
@@ -230,13 +265,23 @@ namespace xml2epub {
     }
 
     void finish() {
+      string file_name;
+      {
+	stringstream ss;
+	ss << getpid() << "_" << random() << ".svg";
+	file_name = ss.str();
+      }
       string image_file_path;
       {
 	stringstream ss;
-	ss << "images/" << getpid() << "_" << random() << ".svg";
+	ss << m_current_dir << "/images/" << file_name;
 	image_file_path = ss.str();
       }
-      system( "mkdir -p images" );
+      {
+	stringstream ss;
+	ss << "mkdir -p " << m_current_dir << "/images";
+	system(ss.str().c_str());
+      }
       {
 	ofstream svg_file( image_file_path.c_str() );
 	if ( !svg_file ) {
@@ -244,24 +289,158 @@ namespace xml2epub {
 	}
 	parse_plot( m_data.str(), svg_file, true );
       }
+      string image_url;
+      {
+	stringstream ss;
+	ss << "images/" << file_name;
+	image_url = ss.str();
+      }
       Element * paragraph = m_xml_node.add_child( "p" );
       Element * new_node = paragraph->add_child( "img" );
-      new_node->set_attribute( string("src"), image_file_path );
+      new_node->set_attribute( string("src"), image_url );
     }
+
   };
 
-  html_state::html_state( html_builder & root, html_state & parent, Element & xml_node ) 
-    : m_root( root ), m_parent( parent ), m_xml_node( xml_node ) {
+  class html_equation_state : public html_state {
+  private:
+    stringstream m_data;
+  public:
+    html_equation_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir ) 
+      : html_state( parent, xml_node, current_dir ) {
+    }
+    
+    virtual ~html_equation_state() {
+    }
+
+    output_state * bold() {
+      throw runtime_error( "can't use bold xml tag in equation" );
+    }
+
+    void newline() {
+      throw runtime_error( "can't use newline in equation" );
+    }
+
+    output_state * math() {
+      throw runtime_error( "can't use math xml tag in equation" );
+    }
+
+    output_state * section( const std::string & section_name, unsigned int level ) {
+      throw runtime_error( "can't use section xml tag in equation" );
+    }
+
+    output_state * equation() {
+      throw runtime_error( "can't use equation xml tag in equation" );
+    }    
+
+    void put_text( const string & str ) {
+      m_data << str;
+    }
+
+    void finish() {
+      string file_name;
+      {
+	stringstream ss;
+	ss << getpid() << "_" << random() << ".svg";
+	file_name = ss.str();
+      }
+      string image_file_path;
+      {
+	stringstream ss;
+	ss << m_current_dir << "/images/" << file_name;
+	image_file_path = ss.str();
+      }
+      {
+	stringstream ss;
+	ss << "mkdir -p " << m_current_dir << "/images";
+	system(ss.str().c_str());
+      }
+      {
+	ofstream svg_file( image_file_path.c_str() );
+	if ( !svg_file ) {
+	  throw runtime_error( "Unable to create image file" );
+	}
+	parse_equation( m_data.str(), svg_file );
+      }
+      string image_url;
+      {
+	stringstream ss;
+	ss << "images/" << file_name;
+	image_url = ss.str();
+      }
+      Element * paragraph = m_xml_node.add_child( "p" );
+      Element * new_node = paragraph->add_child( "img" );
+      new_node->set_attribute( string("src"), image_url );
+    }
+
+    void parse_equation( const std::string & eqn, std::ostream & svg_output ) {
+      std::string equation(eqn);
+      for ( size_t pos = equation.find("\n",0); pos != std::string::npos; pos = equation.find("\n",pos+1) ) {
+	equation[pos] = ' ';
+      }
+      string file_name;
+      {
+	stringstream ss;
+	ss << getpid() << "_" << random();
+	file_name = ss.str();
+      }
+      string tex_path;
+      {
+	stringstream ss;
+	ss << "/tmp/" << file_name << ".tex";
+	tex_path = ss.str();
+      }
+      {
+	ofstream tex_file( tex_path.c_str() );
+	if ( !tex_file ) {
+	  throw runtime_error( "Cannot creat tmp file" );
+	}
+	tex_file << "\\documentclass{minimal}" << endl;
+	tex_file << "\\usepackage{fontspec}" << endl;
+	tex_file << "\\usepackage{unicode-math}" << endl;
+	tex_file << "\\usepackage{amsmath}" << endl;
+	tex_file << "\\setmathfont{STIXGeneral}" << endl;
+	tex_file << "\\begin{document}" << endl;
+	tex_file << "\\begin{equation*}" << endl;
+	tex_file << equation << endl;
+	tex_file << "\\end{equation*}" << endl;
+	tex_file << "\\end{document}" << endl;
+      }
+
+      string shell_command;
+      {
+	stringstream ss;
+	ss << "( ( cd /tmp; xelatex " << file_name << ".tex; cd -; ) 2>&1 ) > /dev/null";
+	shell_command = ss.str();
+      }
+      system( shell_command.c_str() );
+      {
+	string pdf_file;
+	{
+	  stringstream ss;
+	  ss << "/tmp/" << file_name << ".pdf";
+	  pdf_file = ss.str();
+	}
+	pdf2svg( pdf_file, svg_output );
+      }
+      {
+	stringstream ss;
+	ss << "rm -f /tmp/" << file_name << ".*";
+	shell_command = ss.str();
+      }
+      system( shell_command.c_str() ); 
+    }
+  };
+  
+  html_state::html_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir )
+    : m_parent( parent ), m_xml_node( xml_node ), m_current_dir(current_dir) {
   }
-
-  html_state::html_state( html_builder & root, Element & xml_node ) :
-    m_root( root ), m_parent( * this ), m_xml_node( xml_node ) {}
-
+  
+  html_state::html_state( xmlpp::Element & xml_node, const std::string & current_dir )
+    : m_parent( * this ), m_xml_node( xml_node ), m_current_dir(current_dir) {}
+  
   html_state::~html_state() {
-    if ( &m_parent == this ) {
-      /* i am root */
-      m_root.m_root = NULL;
-    } else {
+    if ( &m_parent != this ) {
       vector<html_state*>::iterator it;
       if ( ( it = find( m_parent.m_children.begin(), m_parent.m_children.end(), this ) )
 	   != m_parent.m_children.end() ) {
@@ -281,12 +460,34 @@ namespace xml2epub {
     }
   }
 
-  void html_state::put_text( const string & str ) {
+  void html_state::put_text( const std::string & str ) {
     m_xml_node.add_child_text( str );
   }
 
   void html_state::newline() {
     m_xml_node.add_child( "br" );
+  }
+
+  output_state * html_state::bold() {
+    Element * new_node = m_xml_node.add_child( "b" );
+    if ( new_node == NULL ) {
+      throw runtime_error( "add_child() failed" );
+    }
+    html_state * retval = new html_state( * this, * new_node, m_current_dir );
+    m_children.push_back( retval );
+    return retval;
+  }
+
+  output_state * html_state::math() {
+    html_state * retval = new html_math_state( * this, m_xml_node, m_current_dir );
+    m_children.push_back( retval );
+    return retval;
+  }
+
+  output_state * html_state::equation(const std::string & label ) {
+    html_state * retval = new html_equation_state( * this, m_xml_node, m_current_dir );
+    m_children.push_back( retval );
+    return retval;
   }
 
   output_state * html_state::section( const std::string & section_name, unsigned int level ) {
@@ -310,38 +511,42 @@ namespace xml2epub {
       ss << "sec:" << section_name;
       new_node->set_attribute( string("id"), ss.str() );
     }
-    html_state * retval = new html_state( m_root, * this, * new_node );
+    html_state * retval = new html_state( * this, * new_node, m_current_dir );
     m_children.push_back( retval );
     return retval;
   }
 
-  output_state * html_state::bold() {
-    Element * new_node = m_xml_node.add_child( "b" );
-    if ( new_node == NULL ) {
-      throw runtime_error( "add_child() failed" );
-    }
-    html_state * retval = new html_state( m_root, * this, * new_node );
+  output_state * html_state::chapter( const std::string & chapter_name ) {
+    throw std::runtime_error( "Chapter within chapter is not allowed -> use section" );
+  }
+
+  output_state * html_state::plot() {
+    html_state * retval = new html_plot_state( * this, m_xml_node, m_current_dir );
     m_children.push_back( retval );
     return retval;
   }
-
-  output_state * html_state::math() { 
-    html_state * retval = new html_math_state( m_root, * this, m_xml_node );
-    m_children.push_back( retval );
-    return retval;
-  }
-
-  output_state * html_state::plot() { 
-    html_state * retval = new html_plot_state( m_root, * this, m_xml_node );
-    m_children.push_back( retval );
-    return retval;
-  }
-
+  
   void html_state::finish() {
-    if ( &m_parent == this ) {
+  }
+
+  class html_root_state;
+
+  class html_chapter_state : public html_state {
+  private:
+    html_root_state & m_parent;
+    xmlpp::Document * m_doc;
+    std::ostream & m_out;
+  protected:
+    friend class html_root_state;
+    /* html_chapter_state is responsible for de-allocating xml-doc!! */
+    html_chapter_state( html_root_state & parent, xmlpp::Document * xml_doc, std::ostream & out, const std::string & current_dir ) : 
+      html_state( *this, *xml_doc->create_root_node( "html" ), current_dir ), m_parent(parent), m_doc(xml_doc), m_out(out) {}
+  public:
+    virtual ~html_chapter_state();
+    void finish() {
       string data;
-      data = m_root.out_doc.write_to_string(  );
-#if 1
+      data = m_doc->write_to_string();
+
       TidyDoc tdoc = tidyCreate();
       if ( tidyOptSetBool( tdoc, TidyXhtmlOut, yes ) == false ) {
 	throw runtime_error( "tidyOptSetBool failed" );
@@ -349,7 +554,7 @@ namespace xml2epub {
       int rc=-1;
       TidyBuffer errbuf;
       tidyBufInit( &errbuf );
-      
+	
       rc = tidySetErrorBuffer( tdoc, &errbuf );
       if ( rc < 0 ) {
 	throw runtime_error( "tidySetErrorBuffer failed" );
@@ -372,20 +577,99 @@ namespace xml2epub {
       tidyBufFree( &output_buffer );
       tidyBufFree( &errbuf );
       tidyRelease( tdoc );
-      m_root.m_out << out_buffer;
-#else
-      m_root.m_out << data;
-#endif
+      m_out << out_buffer;
+    }
+  };
+
+  class html_root_state : public output_state {
+  private:
+    html_builder & m_builder;
+    string m_parent_directory;
+    unsigned int chapter_number;
+    std::vector<std::pair<html_chapter_state*, std::ofstream*> > m_chapters;
+    friend class html_builder;
+    html_root_state( html_builder & builder, const std::string & dir ) : m_builder(builder), m_parent_directory( dir ) {}
+  public:
+    virtual ~html_root_state() {
+      m_builder.m_root = NULL;
+      if ( m_chapters.size() != 0 ) {
+	std::cerr << "WARNING: not all html chapters have been de-alloced!?!?" << std::endl;
+	for ( std::vector<std::pair<html_chapter_state*, std::ofstream*> >::const_iterator it = m_chapters.begin();
+	      it != m_chapters.end(); ++it ) {
+	  delete it->first;
+	  delete it->second;
+	}
+      }
+    }
+    void put_text( const std::string & str ) {
+      for ( std::string::const_iterator it = str.begin(); it != str.end(); ++it ) {
+	if ( ( *it != ' ' ) && ( *it != '\r' ) && ( *it != '\n' ) && ( *it != '\t' ) ) {
+	  throw std::runtime_error("You must open a chapter before putting in text!");
+	}
+      }
+    }
+    void newline() {
+      throw std::runtime_error("You must open a chapter before putting in text!");
+    }
+    output_state * bold() {
+      throw std::runtime_error("You must open a chapter before putting in text!");
+    }
+    output_state * math() {
+      throw std::runtime_error("You must open a chapter before putting in math!");
+    }
+    output_state * section( const std::string & section_name, unsigned int level ) {
+      throw std::runtime_error("You must open a chapter before putting in section!");
+    }
+    output_state * chapter( const std::string & chapter_name ) {
+      chapter_number++;
+      string filename;
+      {
+	stringstream ss;
+	ss << m_parent_directory << "/" << "chapter" << setw(2) << setfill('0') << chapter_number << ".html";
+	filename = ss.str();
+      }
+      std::ofstream * outfile = new std::ofstream(filename.c_str());
+      html_chapter_state * state = new html_chapter_state(*this, new xmlpp::Document, *outfile, m_parent_directory);
+      
+      m_chapters.push_back( std::pair<html_chapter_state*, std::ofstream*>( state, outfile ) );
+      return state;
+    }
+    output_state * plot() {
+      throw std::runtime_error("You must open a chapter before putting in plot!");
+    }
+    void finish() {
+    }
+  private:
+    friend class html_chapter_state;
+    void remove_me( html_chapter_state & chapter_state ) {
+      for ( std::vector<std::pair<html_chapter_state*, std::ofstream*> >::iterator it = m_chapters.begin();
+	    it != m_chapters.end(); ++it ) {
+	if ( it->first == (&chapter_state) ) {
+	  if ( it->second != NULL ) {
+	    delete it->second;
+	    it->second = NULL;
+	  }
+	  m_chapters.erase(it);
+	  break;
+	}
+      }
+    }
+  };
+
+  html_chapter_state::~html_chapter_state() {
+    m_parent.remove_me( *this );
+    delete m_doc;
+  }
+
+  html_builder::html_builder( const std::string & output_dir ) 
+    : m_output_directory(output_dir), m_root(NULL) {
+    {
+      stringstream ss;
+      ss << "rm -rf \"" << m_output_directory << "\" && mkdir -p \"" << m_output_directory << "\"";
+      system( ss.str().c_str() );
     }
   }
-    
-  html_builder::html_builder( ostream & output_stream ) 
-    : out_root( out_doc.create_root_node( "html" ) ), m_out( output_stream ),
-      m_root( NULL ) {
-    if ( out_root == NULL ) {
-      throw runtime_error( "create_root_node failed" );
-    }
-  }
+
     
   html_builder::~html_builder() {
     if ( m_root != NULL ) {
@@ -397,7 +681,7 @@ namespace xml2epub {
     if ( m_root != NULL ) {
       delete m_root;
     }
-    m_root = new html_state( *this, * out_root );
+    m_root = new html_root_state( *this, m_output_directory );
     return m_root;
   }
 

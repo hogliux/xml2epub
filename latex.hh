@@ -24,7 +24,9 @@ namespace xml2epub {
     void newline();
     output_state * bold();
     output_state * math();
+    output_state * equation( const std::string & label );
     output_state * section( const std::string & section_name, unsigned int level );
+    output_state * chapter( const std::string & chapter_name );
     output_state * plot();
     void finish();
   };

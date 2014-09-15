@@ -64,10 +64,11 @@ namespace xml2epub {
     if ( vm.count("output-file") > 1 ) {
       throw runtime_error( "You may only specify one output file (or none for standard output)" );
     }
-    if ( vm.count("output-file") == 1 ) {
-      output_file = vm["output-file"].as< vector<string> >()[0];
-      output_file_is_cout = false;
+    if ( vm.count("output-file") != 1 ) {
+      throw runtime_error( "You must specify an output path" );
     }
+    output_file = vm["output-file"].as< vector<string> >()[0];
+    output_file_is_cout = false;
   }
 
   void parse_node( const Node & in_node, output_state & state ) {
@@ -88,6 +89,8 @@ namespace xml2epub {
 	  out = state.bold();
 	} else if ( name == "math" ) {
 	  out = state.math();
+	} else if ( name == "equation" ) {
+	  out = state.equation(element.get_attribute_value( "label" ));
 	} else if ( name == "plot" ) {
 	  out = state.plot();
 	} else if ( name == "br" ) {
@@ -112,6 +115,12 @@ namespace xml2epub {
 	    level = 0;
 	  }
 	  out = state.section( section_name, level );
+	} else if ( name == "chapter" ) {
+	  string section_name = element.get_attribute_value( "name" );
+	  if ( section_name.length() == 0 ) {
+	    throw runtime_error( "Sections must have a name attribute" );
+	  }
+	  out = state.chapter( section_name );
 	} else {
 	  stringstream ss;
 	  ss << "Unknown element with name \"" << name << "\" found!" << endl;
@@ -131,7 +140,7 @@ namespace xml2epub {
     }
   }
 
-  void parse_file( bool do_html, istream & input_stream, ostream & output_stream ) {
+  void parse_file( bool do_html, istream & input_stream, const std::string & output_path ) {
     DomParser parser;
     parser.set_substitute_entities( true );
     parser.parse_stream( input_stream );
@@ -143,10 +152,12 @@ namespace xml2epub {
       }
       
       output_builder * b;
+      std::ofstream * outfile = NULL;
       if ( do_html ) {
-	b = new html_builder( output_stream );
+	b = new html_builder( output_path );
       } else {
-	b = new latex_builder( output_stream );
+	outfile = new std::ofstream(output_path.c_str());
+	b = new latex_builder( *outfile );
       }
 
       /* do stuff */
@@ -166,6 +177,9 @@ namespace xml2epub {
 	delete s;
       }
       delete b;
+      if ( outfile != NULL ) {
+	delete outfile;
+      }
     }
   }
   map<string, string> gSymmap;
@@ -191,7 +205,6 @@ int main( int argc, char * argv[] ) {
   xml2epub::parse_cmdline_args( argc, argv, keep_text, input_file_path, input_file_is_cin,
 				output_file_path, output_file_is_cout, output_html );
   istream * in_stream = &cin;
-  ostream * out_stream = &cout;
 
   if ( input_file_is_cin == false ) {
     in_stream = new ifstream( input_file_path.c_str() );
@@ -200,21 +213,11 @@ int main( int argc, char * argv[] ) {
       return -1;
     }
   }
-  if ( output_file_is_cout == false ) {
-    out_stream = new ofstream( output_file_path.c_str() );
-    if ( !(*out_stream) ) {
-      cerr << "Unable to open file \"" << output_file_path << "\" for output!" << endl;
-      return -1;
-    }
-  }
 
-  xml2epub::parse_file( output_html, *in_stream, *out_stream );
+  xml2epub::parse_file( output_html, *in_stream, output_file_path );
   
   if ( input_file_is_cin == false ) {
     delete in_stream;
-  }
-  if ( output_file_is_cout == false ) {
-    delete out_stream;
   }
 
   return 0;

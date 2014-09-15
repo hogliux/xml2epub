@@ -56,7 +56,7 @@ namespace xml2epub {
     }
     {
       stringstream ss;
-      ss << "rm -f /tmp/" << file_name << ".*";
+      ss << "rm -f /tmp/" << file_name << "*";
       shell_command = ss.str();
     }
     system( shell_command.c_str() );
