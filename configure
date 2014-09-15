@@ -1,0 +1,22 @@
+#!/bin/bash
+
+BUILDDIR="${PWD}"
+
+if [[ "$0" = /* ]]; then
+    MYPATH="${0}"
+else
+    MYPATH="${BUILDDIR}/${0}"
+fi
+SRCDIR=`dirname "${MYPATH}"`
+
+ABS_BUILDDIR=`readlink -f "${BUILDDIR}"`
+ABS_SRCDIR=`readlink -f "${SRCDIR}"`
+
+cat > ${BUILDDIR}/Makefile <<EOF
+BUILDDIR=${BUILDDIR}
+SRCDIR=${SRCDIR}
+EOF
+
+cat ${SRCDIR}/Makefile.in >> ${BUILDDIR}/Makefile
+
+echo "Done!"
