@@ -20,6 +20,21 @@ using namespace std;
 using namespace xmlpp;
 
 namespace xml2epub {
+  unsigned int count_total_xml_elements( const Node & in_node ) {
+    unsigned int retval = 1;
+    const Element * elem_pre = dynamic_cast<const Element*>(&in_node);
+    if ( elem_pre != NULL ) {
+      const Element & elem = *elem_pre;
+      Node::NodeList list = elem.get_children();
+      for ( Node::NodeList::iterator iter = list.begin(); iter != list.end(); ++iter ) {
+	if ( *iter != NULL ) {
+	  retval += count_total_xml_elements( **iter );
+	}
+      }
+    }
+    return retval;
+  }
+
   void parse_cmdline_args( int argc, char * argv[], bool keep_text, 
 			   string & input_file,
 			   bool & input_file_is_cin,
@@ -71,74 +86,92 @@ namespace xml2epub {
     output_file_is_cout = false;
   }
 
-  void parse_node( const Node & in_node, output_state & state ) {
-    if ( dynamic_cast<const ContentNode*>( &in_node ) != NULL ) {
-      const ContentNode & content = dynamic_cast<const ContentNode &>( in_node );
-      state.put_text( content.get_content() );
-    } else {
-      if ( dynamic_cast<const TextNode*>( &in_node ) != NULL ) {
-	const TextNode & text = dynamic_cast<const TextNode &>( in_node );
-	if ( text.is_white_space() ) {
-	  return;
+  class NodeParser {
+  private:
+    unsigned int m_total, m_current, m_last_percent;
+  public:
+    NodeParser( unsigned int total_elements )
+      : m_total(total_elements), m_current(0), m_last_percent(0) {
+      std::cerr << "0% finished" << std::endl;
+    }
+
+    void parse_node( const Node & in_node, output_state & state ) {
+      m_current++;
+      {
+	unsigned int new_percent = ceil( static_cast<double>(m_current)*100./static_cast<double>(m_total) );
+	if ( new_percent != m_last_percent ) {
+	  m_last_percent = new_percent;
+	  std::cerr << new_percent << "% finished" << std::endl;
 	}
-      } else if ( dynamic_cast<const Element*>( &in_node ) != NULL ) {
-	const Element & element = dynamic_cast<const Element&>( in_node );
-	output_state * out = NULL;
-	string name = element.get_name();
-	if ( name == "b" ) {
-	  out = state.bold();
-	} else if ( name == "math" ) {
-	  out = state.math();
-	} else if ( name == "equation" ) {
-	  out = state.equation(element.get_attribute_value( "label" ));
-	} else if ( name == "plot" ) {
-	  out = state.plot();
-	} else if ( name == "br" ) {
-	  state.newline();
-	} else if ( name == "table" ) {
-	  out = state.table();
-	} else if ( name == "tr" ) {
-	  out = state.table_row();
-	} else if ( name == "td" ) {
-	  out = state.table_cell();
-	} else if ( ( name == "section" ) || ( name == "subsection" ) || ( name == "subsubsection" ) ) {
-	  string section_name = element.get_attribute_value( "name" );
-	  if ( section_name.length() == 0 ) {
-	    throw runtime_error( "Sections must have a name attribute" );
+      }
+      if ( dynamic_cast<const ContentNode*>( &in_node ) != NULL ) {
+	const ContentNode & content = dynamic_cast<const ContentNode &>( in_node );
+	state.put_text( content.get_content() );
+      } else {
+	if ( dynamic_cast<const TextNode*>( &in_node ) != NULL ) {
+	  const TextNode & text = dynamic_cast<const TextNode &>( in_node );
+	  if ( text.is_white_space() ) {
+	    return;
 	  }
-	  unsigned int level;
-	  if ( name == "subsection" ) {
-	    level = 1;
-	  } else if ( name == "subsubsection" ) {
-	    level = 2;
-	  } else {
-	    level = 0;
-	  }
-	  out = state.section( section_name, level );
-	} else if ( name == "chapter" ) {
-	  string section_name = element.get_attribute_value( "name" );
-	  if ( section_name.length() == 0 ) {
-	    throw runtime_error( "Sections must have a name attribute" );
-	  }
-	  out = state.chapter( section_name );
-	} else {
-	  stringstream ss;
-	  ss << "Unknown element with name \"" << name << "\" found!" << endl;
-	  throw runtime_error( ss.str().c_str() );
-	}
-	if ( out != NULL ) {
-	  Node::NodeList list = in_node.get_children();
-	  for ( Node::NodeList::iterator iter = list.begin(); iter != list.end(); ++iter ) {
-	    if ( *iter != NULL ) {
-	      parse_node( **iter, *out );
+	} else if ( dynamic_cast<const Element*>( &in_node ) != NULL ) {
+	  const Element & element = dynamic_cast<const Element&>( in_node );
+	  output_state * out = NULL;
+	  string name = element.get_name();
+	  if ( name == "b" ) {
+	    out = state.bold();
+	  } else if ( name == "math" ) {
+	    out = state.math();
+	  } else if ( name == "equation" ) {
+	    out = state.equation(element.get_attribute_value( "label" ));
+	  } else if ( name == "plot" ) {
+	    out = state.plot();
+	  } else if ( name == "br" ) {
+	    state.newline();
+	  } else if ( name == "table" ) {
+	    out = state.table();
+	  } else if ( name == "tr" ) {
+	    out = state.table_row();
+	  } else if ( name == "td" ) {
+	    out = state.table_cell();
+	  } else if ( ( name == "section" ) || ( name == "subsection" ) || ( name == "subsubsection" ) ) {
+	    string section_name = element.get_attribute_value( "name" );
+	    if ( section_name.length() == 0 ) {
+	      throw runtime_error( "Sections must have a name attribute" );
 	    }
+	    unsigned int level;
+	    if ( name == "subsection" ) {
+	      level = 1;
+	    } else if ( name == "subsubsection" ) {
+	      level = 2;
+	    } else {
+	      level = 0;
+	    }
+	    out = state.section( section_name, level );
+	  } else if ( name == "chapter" ) {
+	    string section_name = element.get_attribute_value( "name" );
+	    if ( section_name.length() == 0 ) {
+	      throw runtime_error( "Sections must have a name attribute" );
+	    }
+	    out = state.chapter( section_name );
+	  } else {
+	    stringstream ss;
+	    ss << "Unknown element with name \"" << name << "\" found!" << endl;
+	    throw runtime_error( ss.str().c_str() );
 	  }
-	  out->finish();
-	  delete out;
+	  if ( out != NULL ) {
+	    Node::NodeList list = in_node.get_children();
+	    for ( Node::NodeList::iterator iter = list.begin(); iter != list.end(); ++iter ) {
+	      if ( *iter != NULL ) {
+		parse_node( **iter, *out );
+	      }
+	    }
+	    out->finish();
+	    delete out;
+	  }
 	}
       }
     }
-  }
+  };
 
   void parse_file( bool do_html, istream & input_stream, const std::string & output_path ) {
     DomParser parser;
@@ -166,11 +199,16 @@ namespace xml2epub {
 	if ( root_in.get_name() != "document" ) {
 	  throw runtime_error( "root node must be document" );
 	}
+	unsigned int total_elements = count_total_xml_elements( root_in );
+
 	output_state * s = b->create_root();
 	Node::NodeList list = root_in.get_children();
-	for ( Node::NodeList::iterator iter = list.begin(); iter != list.end(); ++iter ) {
-	  if ( *iter != NULL ) {
-	    parse_node( **iter, * s );
+	{
+	  NodeParser nparser(total_elements);
+	  for ( Node::NodeList::iterator iter = list.begin(); iter != list.end(); ++iter ) {
+	    if ( *iter != NULL ) {
+	      nparser.parse_node( **iter, * s );
+	    }
 	  }
 	}
 	s->finish();
