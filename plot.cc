@@ -29,7 +29,7 @@ namespace xml2epub {
       }
       gnu_plot_file << "set terminal epslatex standalone color" << endl;
       gnu_plot_file << "set samples 600" << endl;
-      gnu_plot_file << "set output \"/tmp/" << file_name << ".tex\"" << endl << endl;
+      gnu_plot_file << "set output \"/tmp/" << file_name << "_pre.tex\"" << endl << endl;
       gnu_plot_file << data << endl;
       gnu_plot_file << "quit" << endl;
     }
@@ -37,7 +37,7 @@ namespace xml2epub {
     string shell_command;
     {
       stringstream ss;
-      ss << "( ( cd /tmp; gnuplot " << file_name << ".plt; xelatex " << file_name << ".tex; cd -; ) 2>&1 ) > /dev/null";
+      ss << "( ( cd /tmp; gnuplot " << file_name << ".plt && cat \"/tmp/" << file_name << "_pre.tex\" | sed 's/\\\\usepackage{graphicx}/\\\\usepackage{unicode-math}\\n\\\\usepackage{graphicx}\\n\\\\setmainfont{STIXGeneral}\\n\\\\setmathfont{STIXGeneral}/g' > \"/tmp/" << file_name << ".tex\" && xelatex " << file_name << ".tex; cd -; ) 2>&1 ) > /dev/null";
       shell_command = ss.str();
     }
     system( shell_command.c_str() );
