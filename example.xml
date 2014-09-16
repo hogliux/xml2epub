@@ -7,15 +7,16 @@
   <chapter name="Tresen">
     test <b>This should be bold!</b>
     <math>\nabla\times H_0=0</math>
-    <section name="Section">
+    <section name="Section" label="fun">
       Text in a section.
-      <plot>
+      <plot label="sine-wave">
 	set xlabel "$\\nabla$"
 	plot sin(x) t "Sine Wave"
       </plot>
-      <equation>
+      <equation label="eqn:ampere">
 	\frac{\partial H}{\partial t}=-\nabla\times E
       </equation>
+      This is evident in the equation <ref label="eqn:ampere"/> and should always be employed.
     </section>
   </chapter>
   <chapter name="The me identity">

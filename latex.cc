@@ -85,11 +85,11 @@ namespace xml2epub {
       throw runtime_error( "can't use newline in math" );
     }
 
-    output_state * section( const std::string & section_name, unsigned int level ) {
+    output_state * section( const std::string & section_name, unsigned int level, const std::string & label ) {
       throw runtime_error( "can't use section xml tag in latex math" );
     }
 
-    output_state * plot() {
+    output_state * plot( const std::string & label ) {
       throw runtime_error( "can't use plot xml tag in latex math" );
     }    
   public:
@@ -98,12 +98,13 @@ namespace xml2epub {
     }
   };
 
-class latex_plot_state : public latex_state {
+  class latex_plot_state : public latex_state {
   private:
     stringstream m_data;
+    string m_label;
   public:
-    latex_plot_state( latex_builder & root, latex_state & parent, ostream & outs ) 
-      : latex_state( root, parent, outs ) {
+    latex_plot_state( latex_builder & root, latex_state & parent, const std::string & label, ostream & outs ) 
+      : latex_state( root, parent, outs ), m_label(label) {
     }
     
     virtual ~latex_plot_state() {
@@ -121,7 +122,7 @@ class latex_plot_state : public latex_state {
       throw runtime_error( "can't use newline in plot" );
     }
 
-    output_state * section( const std::string & section_name, unsigned int level ) {
+    output_state * section( const std::string & section_name, unsigned int level, const std::string & label ) {
       throw runtime_error( "can't use section xml tag in plot" );
     }
 
@@ -148,7 +149,11 @@ class latex_plot_state : public latex_state {
 	}
 	parse_plot( m_data.str(), pdf_file, false );
       }
-      m_out << "\\begin{figure}" << endl;
+      m_out << "\\begin{figure}";
+      if ( m_label.size() != 0 ) {
+	m_out << "\\label{" << m_label << "}";
+      }
+      m_out << endl;
       m_out << "\\centering" << endl;
       m_out << "\\includegraphics[width=0.7\\textwidth]{" << image_file_path << "}" << endl;
       m_out << "\\end{figure}" << endl;
@@ -182,6 +187,10 @@ class latex_plot_state : public latex_state {
       }
     }
   }
+  
+  void latex_state::reference( const std::string & label ) {
+    m_out << "\\ref{" << label << "}";
+  }
 
   void latex_state::put_text( const string & str ) {
     m_out << str;
@@ -191,7 +200,7 @@ class latex_plot_state : public latex_state {
     m_out << "\\\\" << endl;
   }
 
-  output_state * latex_state::section( const std::string & section_name, unsigned int level ) {
+  output_state * latex_state::section( const std::string & section_name, unsigned int level, const std::string & label ) {
     if ( level > 2 ) {
       throw runtime_error( "latex backend only supports subsubsection (level=2)" );
     }
@@ -200,14 +209,20 @@ class latex_plot_state : public latex_state {
       m_out << "sub";
     }
     m_out << "section{" << section_name << "}" << endl;
+    if ( label.size() != 0 ) {
+      m_out << "\\label{" << label << "}" << endl;
+    }
     latex_state * retval = new latex_state( m_root, *this, m_out );
     m_children.push_back( retval );
     return retval;
   }
 
-  output_state * latex_state::chapter( const std::string & chapter_name ) {
+  output_state * latex_state::chapter( const std::string & chapter_name, const std::string & label ) {
     m_out << "\\";
     m_out << "chapter{" << chapter_name << "}" << endl;
+    if ( label.size() != 0 ) {
+      m_out << "\\label{" << label << "}" << endl;
+    }
     latex_state * retval = new latex_state( m_root, *this, m_out );
     m_children.push_back( retval );
     return retval;
@@ -231,8 +246,8 @@ class latex_plot_state : public latex_state {
     return retval;
   }
 
-  output_state * latex_state::plot() {
-    latex_state * retval = new latex_plot_state( m_root, * this, m_out );
+  output_state * latex_state::plot( const std::string & label ) {
+    latex_state * retval = new latex_plot_state( m_root, * this, label, m_out );
     m_children.push_back( retval );
     return retval;
   }

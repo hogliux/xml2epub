@@ -22,12 +22,13 @@ namespace xml2epub {
   
     void put_text( const std::string & str );  
     void newline();
+    void reference( const std::string & label );
     output_state * bold();
     output_state * math();
     output_state * equation( const std::string & label );
-    output_state * section( const std::string & section_name, unsigned int level );
-    output_state * chapter( const std::string & chapter_name );
-    output_state * plot();
+    output_state * section( const std::string & section_name, unsigned int level, const std::string & label );
+    output_state * chapter( const std::string & chapter_name, const std::string & label );
+    output_state * plot( const std::string & label );
     void finish();
   };
 

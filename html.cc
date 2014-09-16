@@ -34,12 +34,13 @@ namespace xml2epub {
   public:
     void put_text( const std::string & str );
     void newline();
+    void reference( const std::string & label );
     output_state * bold();
     output_state * math();
     output_state * equation(const std::string & label );
-    output_state * section( const std::string & section_name, unsigned int level );
-    output_state * chapter( const std::string & chapter_name );
-    output_state * plot();
+    output_state * section( const std::string & section_name, unsigned int level, const std::string & label );
+    output_state * chapter( const std::string & chapter_name, const std::string & label );
+    output_state * plot(const std::string & label);
     void finish();
   };
 
@@ -95,11 +96,11 @@ namespace xml2epub {
       throw runtime_error( "can't use newline in math" );
     }
 
-    output_state * section( const std::string & section_name, unsigned int level ) {
+    output_state * section( const std::string & section_name, unsigned int level, const std::string & label ) {
       throw runtime_error( "can't use section xml tag in latex math" );
     }
 
-    output_state * plot() {
+    output_state * plot(const std::string & label) {
       throw runtime_error( "can't use plot xml tag in latex math" );
     }
 
@@ -232,9 +233,10 @@ namespace xml2epub {
   class html_plot_state : public html_state {
   private:
     stringstream m_data;
+    string m_label;
   public:
-    html_plot_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir ) 
-      : html_state( parent, xml_node, current_dir ) {
+    html_plot_state( html_state & parent, xmlpp::Element & xml_node, const std::string & label, const std::string & current_dir ) 
+      : html_state( parent, xml_node, current_dir ), m_label(label) {
     }
     
     virtual ~html_plot_state() {
@@ -252,11 +254,11 @@ namespace xml2epub {
       throw runtime_error( "can't use math xml tag in plot" );
     }
 
-    output_state * section( const std::string & section_name, unsigned int level ) {
+    output_state * section( const std::string & section_name, unsigned int level, const std::string & label ) {
       throw runtime_error( "can't use section xml tag in plot" );
     }
 
-    output_state * plot() {
+    output_state * plot(const std::string & label) {
       throw runtime_error( "can't use plot xml tag in plot" );
     }    
 
@@ -296,6 +298,9 @@ namespace xml2epub {
 	image_url = ss.str();
       }
       Element * paragraph = m_xml_node.add_child( "p" );
+      if ( m_label.size() != 0 ) {
+	paragraph->set_attribute(string("id"), m_label);
+      }
       Element * new_node = paragraph->add_child( "img" );
       new_node->set_attribute( string("src"), image_url );
     }
@@ -305,9 +310,10 @@ namespace xml2epub {
   class html_equation_state : public html_state {
   private:
     stringstream m_data;
+    string m_label;
   public:
-    html_equation_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir ) 
-      : html_state( parent, xml_node, current_dir ) {
+    html_equation_state( html_state & parent, xmlpp::Element & xml_node, const std::string & label, const std::string & current_dir ) 
+      : html_state( parent, xml_node, current_dir ), m_label(label) {
     }
     
     virtual ~html_equation_state() {
@@ -369,6 +375,9 @@ namespace xml2epub {
 	image_url = ss.str();
       }
       Element * paragraph = m_xml_node.add_child( "p" );
+      if ( m_label.size() != 0 ) {
+	paragraph->set_attribute(string("id"), m_label);
+      }
       Element * new_node = paragraph->add_child( "img" );
       new_node->set_attribute( string("src"), image_url );
     }
@@ -485,12 +494,19 @@ namespace xml2epub {
   }
 
   output_state * html_state::equation(const std::string & label ) {
-    html_state * retval = new html_equation_state( * this, m_xml_node, m_current_dir );
+    html_state * retval = new html_equation_state( * this, m_xml_node, label, m_current_dir );
     m_children.push_back( retval );
     return retval;
   }
 
-  output_state * html_state::section( const std::string & section_name, unsigned int level ) {
+  void html_state::reference( const std::string & label ) {
+    //TODO
+    Element * link_node = m_xml_node.add_child( string("a") );
+    link_node->set_attribute( string("href"), string("#")+label );
+    link_node->add_child_text( string("[?]") );
+  }
+
+  output_state * html_state::section( const std::string & section_name, unsigned int level, const std::string & label ) {
     string html_section_element_name;
     {
       stringstream ss;
@@ -498,6 +514,9 @@ namespace xml2epub {
       html_section_element_name = ss.str();
     }
     Element * header_node = m_xml_node.add_child( html_section_element_name );
+    if ( label.size() != 0 ) {
+      header_node->set_attribute(string("id"), label );
+    }
     if ( header_node == NULL ) {
       throw runtime_error( "add_child() failed" );
     }
@@ -516,12 +535,12 @@ namespace xml2epub {
     return retval;
   }
 
-  output_state * html_state::chapter( const std::string & chapter_name ) {
+  output_state * html_state::chapter( const std::string & chapter_name, const std::string & label ) {
     throw std::runtime_error( "Chapter within chapter is not allowed -> use section" );
   }
 
-  output_state * html_state::plot() {
-    html_state * retval = new html_plot_state( * this, m_xml_node, m_current_dir );
+  output_state * html_state::plot(const std::string & label) {
+    html_state * retval = new html_plot_state( * this, m_xml_node, label, m_current_dir );
     m_children.push_back( retval );
     return retval;
   }
@@ -627,10 +646,10 @@ namespace xml2epub {
     output_state * math() {
       throw std::runtime_error("You must open a chapter before putting in math!");
     }
-    output_state * section( const std::string & section_name, unsigned int level ) {
+    output_state * section( const std::string & section_name, unsigned int level, const std::string & label ) {
       throw std::runtime_error("You must open a chapter before putting in section!");
     }
-    output_state * chapter( const std::string & chapter_name ) {
+    output_state * chapter( const std::string & chapter_name, const std::string & label ) {
       chapter_number++;
       string filename;
       {
@@ -651,7 +670,7 @@ namespace xml2epub {
       m_chapters.push_back( std::pair<html_chapter_state*, std::ofstream*>( state, outfile ) );
       return state;
     }
-    output_state * plot() {
+    output_state * plot(const std::string & label) {
       throw std::runtime_error("You must open a chapter before putting in plot!");
     }
     void finish() {

@@ -14,10 +14,11 @@ namespace xml2epub {
     virtual output_state * table();
     virtual output_state * table_row();
     virtual output_state * table_cell();
+    virtual void reference( const std::string & label );
 
-    virtual output_state * section( const std::string & section_name, unsigned int level ) = 0;  
-    virtual output_state * chapter( const std::string & chapter_name ) = 0;
-    virtual output_state * plot() = 0;
+    virtual output_state * section( const std::string & section_name, unsigned int level, const std::string & label ) = 0;  
+    virtual output_state * chapter( const std::string & chapter_name, const std::string & label ) = 0;
+    virtual output_state * plot( const std::string & label ) = 0;
     virtual void finish() = 0;
   };
 
@@ -25,6 +26,7 @@ namespace xml2epub {
   public:
     virtual ~output_builder() {}
     virtual output_state * create_root() = 0;
+    
   };
 
 }

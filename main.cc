@@ -117,20 +117,23 @@ namespace xml2epub {
 	  const Element & element = dynamic_cast<const Element&>( in_node );
 	  output_state * out = NULL;
 	  string name = element.get_name();
+	  string label = element.get_attribute_value( "label" );
 	  if ( name == "b" ) {
 	    out = state.bold();
 	  } else if ( name == "math" ) {
 	    out = state.math();
 	  } else if ( name == "equation" ) {
-	    out = state.equation(element.get_attribute_value( "label" ));
+	    out = state.equation(label);
 	  } else if ( name == "plot" ) {
-	    out = state.plot();
+	    out = state.plot(label);
 	  } else if ( name == "br" ) {
 	    state.newline();
 	  } else if ( name == "table" ) {
 	    out = state.table();
 	  } else if ( name == "tr" ) {
 	    out = state.table_row();
+	  } else if ( name == "ref" ) {
+	    state.reference(label);
 	  } else if ( name == "td" ) {
 	    out = state.table_cell();
 	  } else if ( ( name == "section" ) || ( name == "subsection" ) || ( name == "subsubsection" ) ) {
@@ -146,13 +149,13 @@ namespace xml2epub {
 	    } else {
 	      level = 0;
 	    }
-	    out = state.section( section_name, level );
+	    out = state.section( section_name, level, label );
 	  } else if ( name == "chapter" ) {
 	    string section_name = element.get_attribute_value( "name" );
 	    if ( section_name.length() == 0 ) {
 	      throw runtime_error( "Sections must have a name attribute" );
 	    }
-	    out = state.chapter( section_name );
+	    out = state.chapter( section_name, label );
 	  } else {
 	    stringstream ss;
 	    ss << "Unknown element with name \"" << name << "\" found!" << endl;
