@@ -494,7 +494,7 @@ namespace xml2epub {
     string html_section_element_name;
     {
       stringstream ss;
-      ss << "h" << ( level + 1 );
+      ss << "h" << ( level + 2 );
       html_section_element_name = ss.str();
     }
     Element * header_node = m_xml_node.add_child( html_section_element_name );
@@ -539,8 +539,17 @@ namespace xml2epub {
   protected:
     friend class html_root_state;
     /* html_chapter_state is responsible for de-allocating xml-doc!! */
-    html_chapter_state( html_root_state & parent, xmlpp::Document * xml_doc, std::ostream & out, const std::string & current_dir ) : 
-      html_state( *this, *xml_doc->create_root_node( "html" ), current_dir ), m_parent(parent), m_doc(xml_doc), m_out(out) {}
+    html_chapter_state( html_root_state & parent, xmlpp::Document * xml_doc, 
+			std::ostream & out, const std::string & label, const std::string & current_dir ) : 
+      html_state( *this, *xml_doc->create_root_node( "html" ), current_dir ), m_parent(parent), m_doc(xml_doc), m_out(out) {
+      if ( label.size() != 0 ) {
+	Element * head_node = m_xml_node.add_child( "head" );
+	Element * title_node = head_node->add_child( "title" );
+	title_node->add_child_text( label.c_str() );
+	Element * h1 = m_xml_node.add_child( "h1" );
+	h1->add_child_text( label.c_str() );
+      }
+    }
   public:
     virtual ~html_chapter_state();
     void finish() {
@@ -551,6 +560,7 @@ namespace xml2epub {
       if ( tidyOptSetBool( tdoc, TidyXhtmlOut, yes ) == false ) {
 	throw runtime_error( "tidyOptSetBool failed" );
       }
+      tidySetCharEncoding( tdoc, "utf8" );
       int rc=-1;
       TidyBuffer errbuf;
       tidyBufInit( &errbuf );
@@ -629,7 +639,14 @@ namespace xml2epub {
 	filename = ss.str();
       }
       std::ofstream * outfile = new std::ofstream(filename.c_str());
-      html_chapter_state * state = new html_chapter_state(*this, new xmlpp::Document, *outfile, m_parent_directory);
+      string pretty_name;
+      {
+	stringstream ss;
+	ss << "Chapter " << chapter_number << ": " << chapter_name;
+	pretty_name = ss.str();
+      }
+      html_chapter_state * state = new html_chapter_state(*this, new xmlpp::Document, *outfile, pretty_name, 
+							  m_parent_directory);
       
       m_chapters.push_back( std::pair<html_chapter_state*, std::ofstream*>( state, outfile ) );
       return state;
