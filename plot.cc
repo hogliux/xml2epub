@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <fstream>
 #include <cstdlib>
+#include <unistd.h>
 #include "plot.hh"
 #include "latex2util.hh"
 

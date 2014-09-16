@@ -5,6 +5,7 @@
 #include <libxml++/libxml++.h>
 #include <tidy.h>
 #include <buffio.h>
+#include <unistd.h>
 
 #include "latex.hh"
 #include "plot.hh"
