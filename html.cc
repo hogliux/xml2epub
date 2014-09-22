@@ -35,6 +35,7 @@ namespace xml2epub {
     void put_text( const std::string & str );
     void newline();
     void reference( const std::string & label );
+    void cite( const std::string & id );
     output_state * bold();
     output_state * math();
     output_state * equation(const std::string & label );
@@ -503,6 +504,13 @@ namespace xml2epub {
     //TODO
     Element * link_node = m_xml_node.add_child( string("a") );
     link_node->set_attribute( string("href"), string("#")+label );
+    link_node->add_child_text( string("?") );
+  }
+
+  void html_state::cite( const std::string & id ) {
+    //TODO
+    Element * link_node = m_xml_node.add_child( string("a") );
+    link_node->set_attribute( string("href"), string("bibliography.hmtl#")+id );
     link_node->add_child_text( string("[?]") );
   }
 

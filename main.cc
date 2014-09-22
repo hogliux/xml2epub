@@ -4,6 +4,7 @@
 #include <vector>
 #include <stdexcept>
 #include <sstream>
+#include <cmath>
 #include <boost/program_options.hpp>
 #include <libxml++/libxml++.h>
 #include <tidy.h>
@@ -136,6 +137,8 @@ namespace xml2epub {
 	    state.reference(label);
 	  } else if ( name == "td" ) {
 	    out = state.table_cell();
+	  } else if ( name == "cite" ) {
+	    state.cite(element.get_attribute_value( "id" ));
 	  } else if ( ( name == "section" ) || ( name == "subsection" ) || ( name == "subsubsection" ) ) {
 	    string section_name = element.get_attribute_value( "name" );
 	    if ( section_name.length() == 0 ) {

@@ -192,6 +192,10 @@ namespace xml2epub {
     m_out << "\\ref{" << label << "}";
   }
 
+  void latex_state::cite( const std::string & id ) {
+    m_out << "\\ref{" << id << "}";
+  }
+
   void latex_state::put_text( const string & str ) {
     m_out << str;
   }

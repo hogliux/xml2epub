@@ -15,6 +15,7 @@ namespace xml2epub {
     virtual output_state * table_row();
     virtual output_state * table_cell();
     virtual void reference( const std::string & label );
+    virtual void cite( const std::string & id );
 
     virtual output_state * section( const std::string & section_name, unsigned int level, const std::string & label ) = 0;  
     virtual output_state * chapter( const std::string & chapter_name, const std::string & label ) = 0;

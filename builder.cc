@@ -12,6 +12,10 @@ namespace xml2epub {
     throw runtime_error( "equation statement unsupported in this state" );
   }
 
+  void output_state::cite( const std::string & id ) {
+    throw runtime_error( "cite statement unsupported in this state" );
+  }
+
   output_state * output_state::table() {
     throw runtime_error( "table statement unsupported in this state" );
   }
