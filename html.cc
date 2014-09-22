@@ -142,7 +142,14 @@ namespace xml2epub {
 	    }
 	  }
 	}
-	if ( result.find( '\\' ) == string::npos ) {
+	bool has_unicode_represnetation = true;
+	for ( size_t pos = result.find( '\\' ); pos != string::npos; pos = result.find( '\\', pos+1 ) ) {
+	  if ( result.substr( pos, string( "\\mathbf{" ).size() ) != string( "\\mathbf{" ) ) {
+	    has_unicode_represnetation = false;
+	    break;
+	  }
+	}
+	if ( has_unicode_represnetation ) {
 	  /* filter out spaces */
 	  string old = result;
 	  result = "";
@@ -151,9 +158,15 @@ namespace xml2epub {
 	      result += *it;
 	    }
 	  }
-	  for ( size_t q = (result.find('^')==string::npos?result.find('_'):result.find('^'));
-		q != string::npos; q = (result.find('^')==string::npos?result.find('_'):result.find('^')) ) {
-	    bool is_super = ( result[q] == '^' );
+	  /* replace \mathbf with @ symbol */
+	  for ( size_t pos = result.find( '\\' ); pos != string::npos; pos = result.find( '\\' ) ) {
+	    if ( result.substr( pos, string( "\\mathbf{" ).size() ) == string( "\\mathbf{" ) ) {
+	      result = result.replace( pos, string( "\\mathbf{" ).size(), "@{" );
+	    }
+	  }
+	  for ( size_t q = (result.find('^')==string::npos?(result.find('_')==string::npos?result.find('@'):result.find('_')):result.find('^'));
+		q != string::npos; q = (result.find('^')==string::npos?(result.find('_')==string::npos?result.find('@'):result.find('_')):result.find('^')) ) {
+	    char the_char = result[q];
 	    if ( q != 0 ) {
 	      add_child_with_italic( m_xml_node, result.substr( 0, q ) );
 	      result = result.substr( q );
@@ -176,12 +189,16 @@ namespace xml2epub {
 		result = result.substr( 1 );
 	      }
 	      Element * new_node;
-	      if ( is_super ) {
+	      if ( the_char == '^' ) {
 		new_node = m_xml_node.add_child( "sup" );
-	      } else {
+		add_child_with_italic( * new_node, script );
+	      } else if ( the_char == '_' ) {
 		new_node = m_xml_node.add_child( "sub" );
+		add_child_with_italic( * new_node, script );	      
+	      } else {
+		new_node = m_xml_node.add_child( "b" );
+		add_text_chunk( * new_node, script, false );
 	      }
-	      add_child_with_italic( * new_node, script );
 	    }
 	  }
 	  /* string successfully replaced by unicode */
@@ -582,12 +599,18 @@ namespace xml2epub {
     void finish() {
       string data;
       data = m_doc->write_to_string();
+      /* delete the first line so that tidy will add it's own xml tag */
+      data = data.substr( data.find('\n')+1 );
 
       TidyDoc tdoc = tidyCreate();
       if ( tidyOptSetBool( tdoc, TidyXhtmlOut, yes ) == false ) {
 	throw runtime_error( "tidyOptSetBool failed" );
       }
-      tidySetCharEncoding( tdoc, "utf8" );
+      if ( tidyOptSetBool( tdoc, TidyXmlDecl, yes ) == false ) {
+	throw runtime_error( "tidyOptSetBool failed" );
+      }
+      tidySetInCharEncoding( tdoc, "utf8" );
+      tidySetOutCharEncoding( tdoc, "latin1" );
       int rc=-1;
       TidyBuffer errbuf;
       tidyBufInit( &errbuf );
