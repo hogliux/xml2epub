@@ -201,7 +201,11 @@ namespace xml2epub {
   }
 
   void latex_state::newline() {
-    m_out << "\\\\" << endl;
+    m_out << "\\" << endl;
+  }
+
+  void latex_state::new_paragraph() {
+    m_out << endl << endl;
   }
 
   output_state * latex_state::section( const std::string & section_name, unsigned int level, const std::string & label ) {

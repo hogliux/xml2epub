@@ -7,7 +7,8 @@
   <chapter name="Tresen">
     test <b>This should be bold!</b>
     <math>\mathbf{r}_{i}</math>
-    and we want to know <math>\Phi</math>.
+    and we want to know <math>\Phi</math>.<np/>
+    So this is how we role into town on New Year's Eve!
     <section name="Section" label="fun">
       Text in a section.
       <plot label="sine-wave">

@@ -129,6 +129,8 @@ namespace xml2epub {
 	    out = state.plot(label);
 	  } else if ( name == "br" ) {
 	    state.newline();
+	  } else if ( name == "np" ) {
+	    state.new_paragraph();
 	  } else if ( name == "table" ) {
 	    out = state.table();
 	  } else if ( name == "tr" ) {

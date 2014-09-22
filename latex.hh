@@ -22,6 +22,7 @@ namespace xml2epub {
   
     void put_text( const std::string & str );  
     void newline();
+    void new_paragraph();
     void reference( const std::string & label );
     void cite( const std::string & id );
     output_state * bold();

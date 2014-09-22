@@ -27,13 +27,17 @@ namespace xml2epub {
     std::vector<html_state*> m_children;
     xmlpp::Element & m_xml_node;
     const std::string & m_current_dir;
+    xmlpp::Element * m_paragraph_node;
   protected:
-    html_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir );
+    html_state( html_state & parent, xmlpp::Element & xml_node, xmlpp::Element * paragraph_node, const std::string & current_dir );
     html_state( xmlpp::Element & xml_node, const std::string & current_dir );
+    void end_paragraph();
+    void check_paragraph();
     virtual ~html_state();
   public:
     void put_text( const std::string & str );
     void newline();
+    void new_paragraph();
     void reference( const std::string & label );
     void cite( const std::string & id );
     output_state * bold();
@@ -79,7 +83,7 @@ namespace xml2epub {
     }
   public:
     html_math_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir ) 
-      : html_state( parent, xml_node, current_dir ){
+      : html_state( parent, xml_node, &xml_node, current_dir ){
     }
 
     virtual ~html_math_state() {
@@ -254,7 +258,7 @@ namespace xml2epub {
     string m_label;
   public:
     html_plot_state( html_state & parent, xmlpp::Element & xml_node, const std::string & label, const std::string & current_dir ) 
-      : html_state( parent, xml_node, current_dir ), m_label(label) {
+      : html_state( parent, xml_node, &xml_node, current_dir ), m_label(label) {
     }
     
     virtual ~html_plot_state() {
@@ -331,7 +335,7 @@ namespace xml2epub {
     string m_label;
   public:
     html_equation_state( html_state & parent, xmlpp::Element & xml_node, const std::string & label, const std::string & current_dir ) 
-      : html_state( parent, xml_node, current_dir ), m_label(label) {
+      : html_state( parent, xml_node, &xml_node, current_dir ), m_label(label) {
     }
     
     virtual ~html_equation_state() {
@@ -459,14 +463,15 @@ namespace xml2epub {
     }
   };
   
-  html_state::html_state( html_state & parent, xmlpp::Element & xml_node, const std::string & current_dir )
-    : m_parent( parent ), m_xml_node( xml_node ), m_current_dir(current_dir) {
+  html_state::html_state( html_state & parent, xmlpp::Element & xml_node, xmlpp::Element * paragraph_node, const std::string & current_dir )
+    : m_parent( parent ), m_xml_node( xml_node ), m_current_dir(current_dir), m_paragraph_node( paragraph_node ) {
   }
   
   html_state::html_state( xmlpp::Element & xml_node, const std::string & current_dir )
-    : m_parent( * this ), m_xml_node( xml_node ), m_current_dir(current_dir) {}
+    : m_parent( * this ), m_xml_node( xml_node ), m_current_dir(current_dir), m_paragraph_node( NULL ) {}
   
   html_state::~html_state() {
+    end_paragraph();
     if ( &m_parent != this ) {
       vector<html_state*>::iterator it;
       if ( ( it = find( m_parent.m_children.begin(), m_parent.m_children.end(), this ) )
@@ -487,51 +492,73 @@ namespace xml2epub {
     }
   }
 
+  void html_state::check_paragraph() {
+    if ( m_paragraph_node == NULL ) {
+      m_paragraph_node = m_xml_node.add_child( "p" );
+    }
+  }
+
+  void html_state::end_paragraph() {
+    /* we may need to add something here later on */
+    m_paragraph_node = NULL;
+  }
+
   void html_state::put_text( const std::string & str ) {
-    m_xml_node.add_child_text( str );
+    check_paragraph();
+    m_paragraph_node->add_child_text( str );
   }
 
   void html_state::newline() {
-    m_xml_node.add_child( "br" );
+    check_paragraph();
+    m_paragraph_node->add_child( "br" );
+  }
+
+  void html_state::new_paragraph() {
+    end_paragraph();
   }
 
   output_state * html_state::bold() {
-    Element * new_node = m_xml_node.add_child( "b" );
+    check_paragraph();
+    Element * new_node = m_paragraph_node->add_child( "b" );
     if ( new_node == NULL ) {
       throw runtime_error( "add_child() failed" );
     }
-    html_state * retval = new html_state( * this, * new_node, m_current_dir );
+    html_state * retval = new html_state( * this, * new_node, new_node,  m_current_dir );
     m_children.push_back( retval );
     return retval;
   }
 
   output_state * html_state::math() {
-    html_state * retval = new html_math_state( * this, m_xml_node, m_current_dir );
+    html_state * retval = new html_math_state( * this, * m_paragraph_node, m_current_dir );
     m_children.push_back( retval );
     return retval;
   }
 
   output_state * html_state::equation(const std::string & label ) {
+    end_paragraph();
     html_state * retval = new html_equation_state( * this, m_xml_node, label, m_current_dir );
     m_children.push_back( retval );
     return retval;
   }
 
   void html_state::reference( const std::string & label ) {
+    check_paragraph();
     //TODO
-    Element * link_node = m_xml_node.add_child( string("a") );
+    Element * link_node = m_paragraph_node->add_child( string("a") );
     link_node->set_attribute( string("href"), string("#")+label );
     link_node->add_child_text( string("?") );
   }
 
   void html_state::cite( const std::string & id ) {
+    check_paragraph();
     //TODO
-    Element * link_node = m_xml_node.add_child( string("a") );
+    Element * link_node = m_paragraph_node->add_child( string("a") );
     link_node->set_attribute( string("href"), string("bibliography.hmtl#")+id );
     link_node->add_child_text( string("[?]") );
   }
 
   output_state * html_state::section( const std::string & section_name, unsigned int level, const std::string & label ) {
+    end_paragraph();
     string html_section_element_name;
     {
       stringstream ss;
@@ -555,7 +582,7 @@ namespace xml2epub {
       ss << "sec:" << section_name;
       new_node->set_attribute( string("id"), ss.str() );
     }
-    html_state * retval = new html_state( * this, * new_node, m_current_dir );
+    html_state * retval = new html_state( * this, * new_node, NULL, m_current_dir );
     m_children.push_back( retval );
     return retval;
   }
@@ -565,6 +592,7 @@ namespace xml2epub {
   }
 
   output_state * html_state::plot(const std::string & label) {
+    end_paragraph();
     html_state * retval = new html_plot_state( * this, m_xml_node, label, m_current_dir );
     m_children.push_back( retval );
     return retval;
@@ -585,7 +613,7 @@ namespace xml2epub {
     /* html_chapter_state is responsible for de-allocating xml-doc!! */
     html_chapter_state( html_root_state & parent, xmlpp::Document * xml_doc, 
 			std::ostream & out, const std::string & label, const std::string & current_dir ) : 
-      html_state( *this, *xml_doc->create_root_node( "html" ), current_dir ), m_parent(parent), m_doc(xml_doc), m_out(out) {
+      html_state( *xml_doc->create_root_node( "html" ), current_dir ), m_parent(parent), m_doc(xml_doc), m_out(out) {
       if ( label.size() != 0 ) {
 	Element * head_node = m_xml_node.add_child( "head" );
 	Element * title_node = head_node->add_child( "title" );

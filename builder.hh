@@ -7,6 +7,7 @@ namespace xml2epub {
     virtual ~output_state() {}
     virtual void put_text( const std::string & str ) = 0;
     virtual void newline() = 0;
+    virtual void new_paragraph();
     virtual output_state * bold() = 0;
     virtual output_state * math() = 0;
     virtual output_state * equation( const std::string & label );
