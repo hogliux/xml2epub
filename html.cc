@@ -113,6 +113,7 @@ namespace xml2epub {
       /* check if the latex string can just be converted to pure unicode text */
       {
 	string math(m_ss.str());
+	math += " ";
 	string result;
 	string tag;
 	bool parse_tag = false;

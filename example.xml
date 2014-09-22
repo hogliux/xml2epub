@@ -7,6 +7,7 @@
   <chapter name="Tresen">
     test <b>This should be bold!</b>
     <math>\mathbf{r}_{i}</math>
+    and we want to know <math>\Phi</math>.
     <section name="Section" label="fun">
       Text in a section.
       <plot label="sine-wave">
