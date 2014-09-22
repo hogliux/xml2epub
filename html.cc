@@ -164,8 +164,7 @@ namespace xml2epub {
 	      result = result.replace( pos, string( "\\mathbf{" ).size(), "@{" );
 	    }
 	  }
-	  for ( size_t q = (result.find('^')==string::npos?(result.find('_')==string::npos?result.find('@'):result.find('_')):result.find('^'));
-		q != string::npos; q = (result.find('^')==string::npos?(result.find('_')==string::npos?result.find('@'):result.find('_')):result.find('^')) ) {
+	  for ( size_t q = result.find_first_of("_^@"); q != string::npos; q = result.find_first_of("_^@") ) {
 	    char the_char = result[q];
 	    if ( q != 0 ) {
 	      add_child_with_italic( m_xml_node, result.substr( 0, q ) );
