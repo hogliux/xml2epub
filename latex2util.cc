@@ -33,7 +33,6 @@ namespace xml2epub {
     file << "\\documentclass{minimal}" << endl;
     file << "\\usepackage{fontspec}" << endl;
     file << "\\usepackage{unicode-math}" << endl;
-    file << "\\setmathfont{lmmath-regular.otf}" << endl;
     file << "\\begin{document}" << endl;
     file << input.rdbuf();
     file << endl;
