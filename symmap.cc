@@ -97,7 +97,7 @@ namespace xml2epub {
     "xi","𝜉",
     "pi","𝜋",
     "varpi","𝜛",
-    "rho","𝜌",
+    "rho","ρ",
     "varrho","𝜚",
     "sigma","𝜎",
     "varsigma","𝜍",
