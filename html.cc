@@ -452,7 +452,7 @@ namespace xml2epub {
 	  ss << "/tmp/" << file_name << ".pdf";
 	  pdf_file = ss.str();
 	}
-	pdf2svg( pdf_file, svg_output );
+	pdf2svg( pdf_file, svg_output, 1.5 );
       }
       {
 	stringstream ss;

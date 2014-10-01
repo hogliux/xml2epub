@@ -68,7 +68,7 @@ namespace xml2epub {
     unlink( pdf_path.c_str() );    
   }
 
-  void pdf2svg( const std::string & pdf_path, std::ostream & output ) {
+  void pdf2svg( const std::string & pdf_path, std::ostream & output, double scale_factor ) {
     gchar * filename_uri = g_filename_to_uri( pdf_path.c_str(), NULL, NULL );
     PopplerDocument * doc = poppler_document_new_from_file( filename_uri, NULL, NULL );
     if ( doc == NULL ) {
@@ -81,6 +81,7 @@ namespace xml2epub {
       
       cairo_surface_t * bSurface = cairo_recording_surface_create( CAIRO_CONTENT_COLOR_ALPHA, NULL);
       cairo_t * drawcontext = cairo_create( bSurface );
+      cairo_scale( drawcontext, scale_factor, scale_factor );
       if ( bSurface == NULL ) {
 	g_object_unref( page );
 	g_object_unref( doc );
@@ -103,6 +104,7 @@ namespace xml2epub {
       }
       drawcontext = cairo_create( surface );
       cairo_translate( drawcontext, -1.*bbox_x, -1.*bbox_y );
+      cairo_scale( drawcontext, scale_factor, scale_factor );
       poppler_page_render( page, drawcontext );
       cairo_show_page( drawcontext );
       cairo_destroy( drawcontext );
