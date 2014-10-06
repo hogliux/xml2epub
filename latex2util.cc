@@ -31,8 +31,6 @@ namespace xml2epub {
       throw runtime_error( "Unable to open tmp file" );
     }
     file << "\\documentclass{minimal}" << endl;
-    file << "\\usepackage{fontspec}" << endl;
-    file << "\\usepackage{unicode-math}" << endl;
     file << "\\begin{document}" << endl;
     file << input.rdbuf();
     file << endl;

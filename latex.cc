@@ -281,17 +281,11 @@ namespace xml2epub {
       latex_state( root, *this, outs ) {
       if ( minimal == true ) {
 	m_out << "\\documentclass{minimal}" << endl;
-	m_out << "\\usepackage{fontspec}" << endl;
-	m_out << "\\usepackage{unicode-math}" << endl;
-	m_out << "\\setmathfont{STIXGeneral}" << endl;
 	m_out << "\\begin{document}" << endl;
       } else {
 	m_out << "\\documentclass[a4paper,12pt]{book}" << endl;
-	m_out << "\\usepackage{fontspec}" << endl;
-	m_out << "\\usepackage{unicode-math}" << endl;
 	m_out << "\\usepackage{graphicx}" << endl;
 	m_out << "\\usepackage{fullpage}" << endl;
-	m_out << "\\setmathfont{STIXGeneral}" << endl;
 	m_out << "\\begin{document}" << endl;
       }
     }

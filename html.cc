@@ -427,10 +427,7 @@ namespace xml2epub {
 	  throw runtime_error( "Cannot creat tmp file" );
 	}
 	tex_file << "\\documentclass{minimal}" << endl;
-	tex_file << "\\usepackage{fontspec}" << endl;
-	tex_file << "\\usepackage{unicode-math}" << endl;
 	tex_file << "\\usepackage{amsmath}" << endl;
-	tex_file << "\\setmathfont{STIXGeneral}" << endl;
 	tex_file << "\\begin{document}" << endl;
 	tex_file << "\\begin{equation*}" << endl;
 	tex_file << equation << endl;
