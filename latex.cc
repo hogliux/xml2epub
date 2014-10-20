@@ -197,7 +197,9 @@ namespace xml2epub {
   }
 
   void latex_state::put_text( const string & str ) {
-    m_out << str;
+    std::string filtered_string(str);
+    std::replace(filtered_string.begin(), filtered_string.end(), '\n', ' ');
+    m_out << filtered_string;
   }
 
   void latex_state::newline() {
