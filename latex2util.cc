@@ -43,16 +43,23 @@ namespace xml2epub {
     string command;
     {
       stringstream ss;
-      ss << "(( cd /tmp; xelatex " << file_name << ".tex ) 2>&1 ) > /dev/null";
+      ss << "(( cd /tmp; xelatex " << file_name << ".tex && mv " << file_name << ".pdf pdf_" << file_name << ".pdf ) 2>&1 ) > /dev/null";
       command = ss.str();
     }
     system( command.c_str() );
     
     {
       stringstream ss;
-      ss << "/tmp/" << file_name << ".pdf";
+      ss << "/tmp/pdf_" << file_name << ".pdf";
       pdf_path = ss.str();
     }
+
+    {
+      stringstream ss;
+      ss << "rm -fr /tmp/" << file_name << "*";
+      command = ss.str();
+    }
+    system( command.c_str() );
   }
 
   cairo_status_t cairo_to_stream_write( void * closure, const unsigned char * data, unsigned int length ) {
