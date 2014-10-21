@@ -28,7 +28,7 @@ namespace xml2epub {
     xmlpp::Element & m_xml_node;
     const std::string & m_current_dir;
     xmlpp::Element * m_paragraph_node;
-  protected:
+  public:
     html_state( html_state & parent, xmlpp::Element & xml_node, xmlpp::Element * paragraph_node, const std::string & current_dir );
     html_state( xmlpp::Element & xml_node, const std::string & current_dir );
     void end_paragraph();
@@ -40,6 +40,9 @@ namespace xml2epub {
     void new_paragraph();
     void reference( const std::string & label );
     void cite( const std::string & id );
+
+    output_state * figure( const std::string & label );
+
     output_state * bold();
     output_state * math();
     output_state * equation(const std::string & label );
@@ -459,6 +462,89 @@ namespace xml2epub {
       system( shell_command.c_str() ); 
     }
   };
+
+  class html_figure_state : public html_state {
+  private:
+    string m_label;
+    std::vector<std::string> m_image_urls;
+    xmlpp::Element * m_paragraph;
+    xmlpp::Element * m_image_row;
+    xmlpp::Element * m_caption_span;
+  public:
+    html_figure_state( html_state & parent, xmlpp::Element & xml_node, const std::string & label, const std::string & current_dir ) 
+      : html_state( parent, xml_node, &xml_node, current_dir ), m_label(label) {
+
+      m_paragraph = m_xml_node.add_child( "div" );
+      m_image_row = m_paragraph->add_child( "div" );
+      xmlpp::Element * caption_space = m_paragraph->add_child("p");
+      xmlpp::Element * caption_header = caption_space->add_child("b");
+      caption_header->add_child_text( "Figure ??" );
+      caption_space->add_child_text(": ");
+      m_caption_span = caption_space->add_child("span");
+    }
+    
+    virtual ~html_figure_state() {
+    }
+
+    output_state * caption( ) {
+      html_state * retval = new html_state( * this, * m_caption_span, m_caption_span,  m_current_dir );
+      m_children.push_back( retval );
+      return retval;
+    }
+
+    void image( const std::string & in_filename ) {
+      string file_name;
+      {
+	stringstream ss;
+	ss << getpid() << "_" << random() << ".svg";
+	file_name = ss.str();
+      }
+      string image_file_path;
+      {
+	stringstream ss;
+	ss << m_current_dir << "/images/" << file_name;
+	image_file_path = ss.str();
+      }
+      {
+	stringstream ss;
+	ss << "mkdir -p " << m_current_dir << "/images";
+	system(ss.str().c_str());
+      }
+      {
+	ofstream svg_file( image_file_path.c_str() );
+	if ( !svg_file ) {
+	  throw runtime_error( "Unable to create image file" );
+	}
+	/* copy file */
+	{
+	  std::ifstream in_file(in_filename.c_str());
+	  std::copy(std::istreambuf_iterator<char>(in_file),std::istreambuf_iterator<char>(),
+		    std::ostreambuf_iterator<char>(svg_file));
+	}
+      }
+      string image_url;
+      {
+	stringstream ss;
+	ss << "images/" << file_name;
+	image_url = ss.str();
+      }
+      m_image_urls.push_back(image_url);
+    }
+
+    void finish() {
+      if ( m_label.size() != 0 ) {
+	m_paragraph->set_attribute(string("id"), m_label);
+      }
+      m_caption_span->set_attribute(string("class"), string("caption-span"));
+      m_paragraph->set_attribute(string("class"), string("figure"));
+      m_image_row->set_attribute(string("class"), string("image-row"));
+      for ( std::vector<std::string>::const_iterator it = m_image_urls.begin();
+	    it != m_image_urls.end(); ++it ) {
+	Element * new_node = m_image_row->add_child("img");
+	new_node->set_attribute( string("src"), *it );
+      }      
+    }
+  };
   
   html_state::html_state( html_state & parent, xmlpp::Element & xml_node, xmlpp::Element * paragraph_node, const std::string & current_dir )
     : m_parent( parent ), m_xml_node( xml_node ), m_current_dir(current_dir), m_paragraph_node( paragraph_node ) {
@@ -591,6 +677,13 @@ namespace xml2epub {
   output_state * html_state::plot(const std::string & label) {
     end_paragraph();
     html_state * retval = new html_plot_state( * this, m_xml_node, label, m_current_dir );
+    m_children.push_back( retval );
+    return retval;
+  }
+
+  output_state * html_state::figure( const std::string & label ) {
+    end_paragraph();
+    html_state * retval = new html_figure_state( * this, m_xml_node, label, m_current_dir );
     m_children.push_back( retval );
     return retval;
   }

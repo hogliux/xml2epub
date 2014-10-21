@@ -15,7 +15,7 @@ namespace xml2epub {
     latex_state & m_parent;
     std::vector<latex_state*> m_children;
     std::ostream & m_out;
-  protected:
+  public:
     latex_state( latex_builder & root, latex_state & parent, std::ostream & outs );  
   public:
     virtual ~latex_state();
@@ -31,6 +31,7 @@ namespace xml2epub {
     output_state * section( const std::string & section_name, unsigned int level, const std::string & label );
     output_state * chapter( const std::string & chapter_name, const std::string & label );
     output_state * plot( const std::string & label );
+    output_state * figure( const std::string & label );
     void finish();
   };
 

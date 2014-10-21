@@ -8,6 +8,9 @@
 #include <poppler-page.h>
 #include <cairo.h>
 #include <cairo-svg.h>
+#include <cairo-pdf.h>
+#include <librsvg/rsvg.h>
+#include <librsvg/rsvg-cairo.h>
 
 #include "latex2util.hh"
 
@@ -109,5 +112,66 @@ namespace xml2epub {
       g_object_unref( page );
     }
     g_object_unref( doc );
+  }
+
+  void svg2pdf( const std::string & svg_path, std::ostream & output, double scale_factor ) {
+    RsvgHandle * svg = NULL;
+    {
+      std::string svg_data;
+      {
+	std::ifstream svg_file(svg_path.c_str() );
+	svg_data = std::string(std::istreambuf_iterator<char>(svg_file),std::istreambuf_iterator<char>());
+      }
+      
+      svg = rsvg_handle_new();
+      if ( svg == NULL ) {
+	throw runtime_error( "rsvg_handle_new failed!" );
+      }
+      
+      if ( rsvg_handle_write( svg, (const guchar*)svg_data.c_str(), svg_data.size(), NULL ) == false ) {
+	throw runtime_error( "rsvg_handle_write failed!" );
+      }
+    }
+
+    GError * error = NULL;
+    if ( rsvg_handle_close( svg, &error ) == false ) {
+      std::string err_str("Unknown");
+      if ( error != NULL ) {
+	err_str = error->message;
+	g_error_free(error);
+      }
+      std::string err_msg( "rsvg_handle_close failed: " + err_str);
+      throw runtime_error( err_msg.c_str() );
+    }
+
+    RsvgDimensionData dimensions;
+    rsvg_handle_get_dimensions( svg, &dimensions );
+
+    cairo_surface_t * surface = 
+      cairo_pdf_surface_create_for_stream( cairo_to_stream_write, &output,
+					   dimensions.width, dimensions.height );
+    if ( surface == NULL ) {
+      g_object_unref( svg );
+      throw runtime_error( "cairo_recording_surface_create failed" );
+    }
+
+    cairo_t * drawcontext = cairo_create( surface );
+    if ( drawcontext == NULL ) {
+      cairo_surface_destroy(surface);
+      g_object_unref( svg );
+      throw runtime_error( "cairo_recording_surface_create failed" );
+    }
+
+    cairo_scale( drawcontext, scale_factor, scale_factor );
+    if ( rsvg_handle_render_cairo( svg, drawcontext ) == false ) {
+      cairo_surface_destroy(surface);
+      g_object_unref( svg );
+      throw runtime_error( "rsvg_handle_render_cairo failed" );
+    }
+
+    cairo_show_page( drawcontext );
+    cairo_destroy( drawcontext );
+    cairo_surface_destroy(surface);
+    g_object_unref( svg );
   }
 }

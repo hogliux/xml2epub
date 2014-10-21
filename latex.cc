@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "latex.hh"
+#include "latex2util.hh"
 #include "plot.hh"
 
 using namespace xmlpp;
@@ -160,6 +161,67 @@ namespace xml2epub {
     }
   };
 
+  class latex_figure_state : public latex_state {
+  private:
+    stringstream m_data;
+    string m_label;
+    std::vector<string> m_pdf_list;
+    std::stringstream m_caption_stream;
+  public:
+    latex_figure_state( latex_builder & root,
+			latex_state & parent, const std::string & label, ostream & outs ) 
+      : latex_state( root, parent, outs ), m_label(label) {
+    }
+    
+    virtual ~latex_figure_state() {
+    }
+
+    void image( const std::string & filename ) {
+      string image_file_path;
+      {
+	stringstream ss;
+	ss << "images/" << getpid() << "_" << random() << ".pdf";
+	image_file_path = ss.str();
+      }
+      system( "mkdir -p images" );
+      {
+	ofstream pdf_file( image_file_path.c_str() );
+	if ( !pdf_file ) {
+	  throw runtime_error( "Unable to create image file" );
+	}
+	svg2pdf( filename, pdf_file );
+      }
+      m_pdf_list.push_back( image_file_path );
+    }
+
+    output_state * caption( ) {
+      latex_state * retval = new latex_state( m_root, *this, m_caption_stream );
+      m_children.push_back( retval );
+      return retval;
+    }
+
+    void finish() {
+      m_out << "\\begin{figure}";
+      if ( m_label.size() != 0 ) {
+	m_out << "\\label{" << m_label << "}";
+      }
+      m_out << endl;
+      m_out << "\\centering" << endl;
+      double width = 0.9 / static_cast<double>(m_pdf_list.size());
+      if ( width > 0.5 ) {
+	width = 0.5;
+      } 
+      for ( std::vector<string>::const_iterator it = m_pdf_list.begin();
+	    it != m_pdf_list.end(); ++it ) {
+	m_out << "\\includegraphics[width=" << width << "\\textwidth]{" << *it << "}" << endl;
+      }
+      if ( m_caption_stream.str().size() > 0 ) {
+	m_out << "\\caption{" << m_caption_stream.str() << "}" << endl;
+      }
+      m_out << "\\end{figure}" << endl;
+    }
+  };
+
   latex_state::latex_state( latex_builder & root, latex_state & parent, ostream & outs ) 
     : m_root( root ), m_parent( parent ), m_out( outs ) {
   }
@@ -258,6 +320,12 @@ namespace xml2epub {
 
   output_state * latex_state::plot( const std::string & label ) {
     latex_state * retval = new latex_plot_state( m_root, * this, label, m_out );
+    m_children.push_back( retval );
+    return retval;
+  }
+
+  output_state * latex_state::figure( const std::string & label ) {
+    latex_state * retval = new latex_figure_state( m_root, * this, label, m_out );
     m_children.push_back( retval );
     return retval;
   }
