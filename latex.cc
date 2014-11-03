@@ -139,10 +139,10 @@ namespace xml2epub {
       string image_file_path;
       {
 	stringstream ss;
-	ss << "images/" << getpid() << "_" << random() << ".pdf";
+	ss << getRootDirectory() << "/images/" << getpid() << "_" << random() << ".pdf";
 	image_file_path = ss.str();
       }
-      system( "mkdir -p images" );
+      system( std::string(std::string("mkdir -p ") + getRootDirectory() + std::string("/images")).c_str() );
       {
 	ofstream pdf_file( image_file_path.c_str() );
 	if ( !pdf_file ) {
@@ -180,10 +180,10 @@ namespace xml2epub {
       string image_file_path;
       {
 	stringstream ss;
-	ss << "images/" << getpid() << "_" << random() << ".pdf";
+	ss << getRootDirectory() << "/images/" << getpid() << "_" << random() << ".pdf";
 	image_file_path = ss.str();
       }
-      system( "mkdir -p images" );
+      system( std::string(std::string("mkdir -p ") + getRootDirectory() + std::string("/images")).c_str() );
       {
 	ofstream pdf_file( image_file_path.c_str() );
 	if ( !pdf_file ) {
@@ -333,6 +333,10 @@ namespace xml2epub {
   void latex_state::finish() {
   }
 
+  const std::string & latex_state::getRootDirectory() const {
+    return m_root.getRootDirectory();
+  }
+
   encaps_state::encaps_state( const string & encaps, latex_builder & root,
 			      latex_state & parent, std::ostream & outs )
     : latex_state( root, parent, outs ) {
@@ -368,8 +372,9 @@ namespace xml2epub {
   };
 
     
-  latex_builder::latex_builder( ostream & output_stream, bool minimal ) 
-    : m_out( output_stream ), m_root( NULL ), m_minimal( minimal ) {
+  latex_builder::latex_builder( ostream & output_stream, const std::string & output_file_path, bool minimal ) 
+    : m_out( output_stream ), m_root( NULL ), m_minimal( minimal ),
+      m_base_dir(output_file_path.substr(0,output_file_path.find_last_of( '/' ))) {
   }
     
   latex_builder::~latex_builder() {
@@ -384,6 +389,10 @@ namespace xml2epub {
     }
     m_root = new root_state( *this, m_out, m_minimal );
     return m_root;
+  }
+
+  const std::string & latex_builder::getRootDirectory() const {
+    return m_base_dir;
   }
 
 }

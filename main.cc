@@ -205,7 +205,7 @@ namespace xml2epub {
 	b = new html_builder( output_path );
       } else {
 	outfile = new std::ofstream(output_path.c_str());
-	b = new latex_builder( *outfile );
+	b = new latex_builder( *outfile, output_path );
       }
 
       /* do stuff */
