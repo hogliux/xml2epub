@@ -286,6 +286,7 @@ namespace xml2epub {
 	m_out << "\\documentclass[a4paper,12pt]{book}" << endl;
 	m_out << "\\usepackage{graphicx}" << endl;
 	m_out << "\\usepackage{fullpage}" << endl;
+	m_out << "\\usepackage{amsmath}" << endl;
 	m_out << "\\begin{document}" << endl;
       }
     }
