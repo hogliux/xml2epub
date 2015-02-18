@@ -2,11 +2,13 @@ CXX=g++
 XML_CFLAGS=$(shell pkg-config libxml++-2.6 --cflags)
 POPPLER_CFLAGS=$(shell pkg-config poppler-glib --cflags)
 TIDY_CFLAGS=$(shell pkg-config libtidy --cflags)
-CFLAGS=-O0 -g $(XML_CFLAGS) $(POPPLER_CFLAGS) $(TIDY_CFLAGS) -I$(SRCDIR)
+LIBRSVG_CFLAGS=$(shell pkg-config librsvg-2.0 --cflags)
+CFLAGS=-O0 -g $(XML_CFLAGS) $(POPPLER_CFLAGS) $(TIDY_CFLAGS) $(LIBRSVG_CFLAGS) -I$(SRCDIR)
 XML_LDFLAGS=$(shell pkg-config libxml++-2.6 --libs)
 POPPLER_LDFLAGS=$(shell pkg-config poppler-glib --libs)
 TIDY_LDFLAGS=$(shell pkg-config libtidy --libs)
-LDFLAGS=-L/home/fr810/Documents/LocalLinux/lib -lboost_program_options $(XML_LDFLAGS) $(POPPLER_LDFLAGS) $(TIDY_LDFLAGS) -Wl,-rpath,/data/users/fr810/LocalLinux/lib
+LIBRSVG_LDFLAGS=$(shell pkg-config librsvg-2.0 --libs)
+LDFLAGS=-L/home/fr810/Documents/LocalLinux/lib -lboost_program_options $(XML_LDFLAGS) $(POPPLER_LDFLAGS) $(TIDY_LDFLAGS) $(LIBRSVG_LDFLAGS) -Wl,-rpath,/data/users/fr810/LocalLinux/lib
 CXXFLAGS=
 
 TARGET=$(BUILDDIR)/xml2epub

@@ -15,6 +15,12 @@
 	set xlabel "$\\nabla$"
 	plot sin(x) t "Sine Wave"
       </plot>
+      <figure label="yee">
+	<image src="TFSF_Yee.svg"/>
+	<caption>
+	  This is the best yee cell ever invented.
+	</caption>
+      </figure>
       <equation label="eqn:ampere">
 	\frac{\partial H}{\partial t}=-\nabla\times E
       </equation>

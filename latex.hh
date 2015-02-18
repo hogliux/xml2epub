@@ -15,7 +15,7 @@ namespace xml2epub {
     latex_state & m_parent;
     std::vector<latex_state*> m_children;
     std::ostream & m_out;
-  protected:
+  public:
     latex_state( latex_builder & root, latex_state & parent, std::ostream & outs );  
   public:
     virtual ~latex_state();
@@ -31,7 +31,10 @@ namespace xml2epub {
     output_state * section( const std::string & section_name, unsigned int level, const std::string & label );
     output_state * chapter( const std::string & chapter_name, const std::string & label );
     output_state * plot( const std::string & label );
+    output_state * figure( const std::string & label );
     void finish();
+  public:
+    const std::string & getRootDirectory() const;
   };
 
   class latex_builder : public output_builder {
@@ -40,10 +43,12 @@ namespace xml2epub {
     std::ostream & m_out;
     latex_state * m_root;
     bool m_minimal;
+    std::string m_base_dir;
   public:
-    latex_builder( std::ostream & output_stream, bool minimal = false );
+    latex_builder( std::ostream & output_stream, const std::string & output_file_path, bool minimal = false );
     virtual ~latex_builder();
     output_state * create_root();
+    const std::string & getRootDirectory() const;
   };
 
 }

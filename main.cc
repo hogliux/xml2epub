@@ -125,6 +125,13 @@ namespace xml2epub {
 	    out = state.math();
 	  } else if ( name == "equation" ) {
 	    out = state.equation(label);
+	  } else if ( name == "figure" ) {
+	    out = state.figure(label);
+	  } else if ( name == "image" ) {
+	    string filename = element.get_attribute_value( "src" );
+	    state.image(filename);
+	  } else if ( name == "caption" ) {
+	    out = state.caption();
 	  } else if ( name == "plot" ) {
 	    out = state.plot(label);
 	  } else if ( name == "br" ) {
@@ -198,7 +205,7 @@ namespace xml2epub {
 	b = new html_builder( output_path );
       } else {
 	outfile = new std::ofstream(output_path.c_str());
-	b = new latex_builder( *outfile );
+	b = new latex_builder( *outfile, output_path );
       }
 
       /* do stuff */

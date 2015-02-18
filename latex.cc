@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include "latex.hh"
+#include "latex2util.hh"
 #include "plot.hh"
 
 using namespace xmlpp;
@@ -138,10 +139,10 @@ namespace xml2epub {
       string image_file_path;
       {
 	stringstream ss;
-	ss << "images/" << getpid() << "_" << random() << ".pdf";
+	ss << getRootDirectory() << "/images/" << getpid() << "_" << random() << ".pdf";
 	image_file_path = ss.str();
       }
-      system( "mkdir -p images" );
+      system( std::string(std::string("mkdir -p ") + getRootDirectory() + std::string("/images")).c_str() );
       {
 	ofstream pdf_file( image_file_path.c_str() );
 	if ( !pdf_file ) {
@@ -156,6 +157,67 @@ namespace xml2epub {
       m_out << endl;
       m_out << "\\centering" << endl;
       m_out << "\\includegraphics[width=0.7\\textwidth]{" << image_file_path << "}" << endl;
+      m_out << "\\end{figure}" << endl;
+    }
+  };
+
+  class latex_figure_state : public latex_state {
+  private:
+    stringstream m_data;
+    string m_label;
+    std::vector<string> m_pdf_list;
+    std::stringstream m_caption_stream;
+  public:
+    latex_figure_state( latex_builder & root,
+			latex_state & parent, const std::string & label, ostream & outs ) 
+      : latex_state( root, parent, outs ), m_label(label) {
+    }
+    
+    virtual ~latex_figure_state() {
+    }
+
+    void image( const std::string & filename ) {
+      string image_file_path;
+      {
+	stringstream ss;
+	ss << getRootDirectory() << "/images/" << getpid() << "_" << random() << ".pdf";
+	image_file_path = ss.str();
+      }
+      system( std::string(std::string("mkdir -p ") + getRootDirectory() + std::string("/images")).c_str() );
+      {
+	ofstream pdf_file( image_file_path.c_str() );
+	if ( !pdf_file ) {
+	  throw runtime_error( "Unable to create image file" );
+	}
+	svg2pdf( filename, pdf_file );
+      }
+      m_pdf_list.push_back( image_file_path );
+    }
+
+    output_state * caption( ) {
+      latex_state * retval = new latex_state( m_root, *this, m_caption_stream );
+      m_children.push_back( retval );
+      return retval;
+    }
+
+    void finish() {
+      m_out << "\\begin{figure}";
+      if ( m_label.size() != 0 ) {
+	m_out << "\\label{" << m_label << "}";
+      }
+      m_out << endl;
+      m_out << "\\centering" << endl;
+      double width = 0.9 / static_cast<double>(m_pdf_list.size());
+      if ( width > 0.5 ) {
+	width = 0.5;
+      } 
+      for ( std::vector<string>::const_iterator it = m_pdf_list.begin();
+	    it != m_pdf_list.end(); ++it ) {
+	m_out << "\\includegraphics[width=" << width << "\\textwidth]{" << *it << "}" << endl;
+      }
+      if ( m_caption_stream.str().size() > 0 ) {
+	m_out << "\\caption{" << m_caption_stream.str() << "}" << endl;
+      }
       m_out << "\\end{figure}" << endl;
     }
   };
@@ -197,7 +259,9 @@ namespace xml2epub {
   }
 
   void latex_state::put_text( const string & str ) {
-    m_out << str;
+    std::string filtered_string(str);
+    std::replace(filtered_string.begin(), filtered_string.end(), '\n', ' ');
+    m_out << filtered_string;
   }
 
   void latex_state::newline() {
@@ -260,7 +324,17 @@ namespace xml2epub {
     return retval;
   }
 
+  output_state * latex_state::figure( const std::string & label ) {
+    latex_state * retval = new latex_figure_state( m_root, * this, label, m_out );
+    m_children.push_back( retval );
+    return retval;
+  }
+
   void latex_state::finish() {
+  }
+
+  const std::string & latex_state::getRootDirectory() const {
+    return m_root.getRootDirectory();
   }
 
   encaps_state::encaps_state( const string & encaps, latex_builder & root,
@@ -299,8 +373,9 @@ namespace xml2epub {
   };
 
     
-  latex_builder::latex_builder( ostream & output_stream, bool minimal ) 
-    : m_out( output_stream ), m_root( NULL ), m_minimal( minimal ) {
+  latex_builder::latex_builder( ostream & output_stream, const std::string & output_file_path, bool minimal ) 
+    : m_out( output_stream ), m_root( NULL ), m_minimal( minimal ),
+      m_base_dir(output_file_path.substr(0,output_file_path.find_last_of( '/' ))) {
   }
     
   latex_builder::~latex_builder() {
@@ -315,6 +390,10 @@ namespace xml2epub {
     }
     m_root = new root_state( *this, m_out, m_minimal );
     return m_root;
+  }
+
+  const std::string & latex_builder::getRootDirectory() const {
+    return m_base_dir;
   }
 
 }
